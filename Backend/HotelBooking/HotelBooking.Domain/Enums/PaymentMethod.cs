@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿
 namespace HotelBooking.Domain.Enums
 {
-    internal class PaymentMethod
+    public enum PaymentMethod
     {
+        Card = 1,
+        UPI = 2,
+        Cash = 3,
+        NetBanking = 4
     }
 }

@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿
 namespace HotelBooking.Domain.Enums
 {
-    internal class RoomStatus
+    public enum RoomStatus
     {
+        Available = 1,
+        Occupied = 2,
+        UnderMaintenance = 3,
+        InActive = 4
     }
 }

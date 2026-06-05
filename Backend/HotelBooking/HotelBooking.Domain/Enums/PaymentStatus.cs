@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿
 namespace HotelBooking.Domain.Enums
 {
-    internal class PaymentStatus
+    public enum PaymentStatus
     {
+        Pending = 1,
+        Success = 2,
+        Failed = 3,
+        Refunded = 4
     }
 }
