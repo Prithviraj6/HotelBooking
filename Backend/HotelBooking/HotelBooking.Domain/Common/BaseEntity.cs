@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿
 namespace HotelBooking.Domain.Common
 {
-    internal class BaseEntity
+    public abstract class BaseEntity
     {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }
