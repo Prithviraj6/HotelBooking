@@ -1,10 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Common;
+using HotelBooking.Domain.Enums;
 
 namespace HotelBooking.Domain.Entities
 {
-    internal class User
+    public class User : BaseEntity
     {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string Email { get; set; }
+        public string PasswordHash { get; set; }
+        public string PhoneNumber { get; set; }
+        public UserRole Role { get; set; }
+
+        //Navigation
+
+        public ICollection<Booking> Bookings { get; set; }
+        public ICollection<Review> Reviews { get; set; }
     }
 }
