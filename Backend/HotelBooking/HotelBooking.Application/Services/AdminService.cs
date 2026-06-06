@@ -1,4 +1,6 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using AutoMapper;
+using HotelBooking.Application.DTOs.Admin;
+using HotelBooking.Application.DTOs.Common;
 using HotelBooking.Application.Interfaces;
 using HotelBooking.Domain.Enums;
 using HotelBooking.Domain.Interfaces;
@@ -8,67 +10,125 @@ namespace HotelBooking.Application.Services
     public class AdminService : IAdminService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
+        private readonly IEmailService _emailService;
 
-        public AdminService(IUnitOfWork unitOfWork)
+        public AdminService(IUnitOfWork unitOfWork, IMapper mapper, IEmailService emailService)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
+            _emailService = emailService;
         }
 
+        public async Task<HotelAdminResponseDto> RegisterHotelAdminAsync(HotelBooking.Application.DTOs.Admin.CreateHotelAdminDto dto)
+        {
+            var emailExists = await _unitOfWork.Users.EmailExistsAsync(dto.Email);
+            if (emailExists)
+                throw new ArgumentException("Email is already registered.");
+
+            var hotel = await _unitOfWork.Hotels.GetByIdAsync(dto.HotelId);
+            if (hotel == null)
+                throw new KeyNotFoundException("Hotel not found.");
+
+            var user = new HotelBooking.Domain.Entities.User
+            {
+                FirstName = dto.FirstName,
+                LastName = dto.LastName,
+                Email = dto.Email.ToLower().Trim(),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                PhoneNumber = dto.PhoneNumber,
+                Role = HotelBooking.Domain.Enums.UserRole.HotelAdmin,
+                ManagedHotelId = dto.HotelId
+            };
+
+            await _unitOfWork.Users.AddAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Optional: send registration confirmation
+            await _emailService.SendRegistrationConfirmationAsync(user.Email, user.FirstName);
+
+            return new HotelBooking.Application.DTOs.Admin.HotelAdminResponseDto
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                ManagedHotelId = hotel.Id,
+                ManagedHotelName = hotel.Name
+            };
+        }
+
+        public async Task<IEnumerable<HotelBooking.Application.DTOs.Admin.HotelAdminResponseDto>> GetHotelAdminsAsync()
+        {
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var hotelAdmins = users.Where(u => u.Role == HotelBooking.Domain.Enums.UserRole.HotelAdmin && u.ManagedHotelId.HasValue).ToList();
+            
+            var response = new List<HotelBooking.Application.DTOs.Admin.HotelAdminResponseDto>();
+            foreach (var admin in hotelAdmins)
+            {
+                var hotel = await _unitOfWork.Hotels.GetByIdAsync(admin.ManagedHotelId!.Value);
+                response.Add(new HotelBooking.Application.DTOs.Admin.HotelAdminResponseDto
+                {
+                    Id = admin.Id,
+                    FirstName = admin.FirstName,
+                    LastName = admin.LastName,
+                    Email = admin.Email,
+                    PhoneNumber = admin.PhoneNumber,
+                    ManagedHotelId = hotel?.Id ?? 0,
+                    ManagedHotelName = hotel?.Name ?? "Unknown"
+                });
+            }
+            return response;
+        }
+
+        public async Task RevokeHotelAdminAsync(int adminId)
+        {
+            var admin = await _unitOfWork.Users.GetByIdAsync(adminId);
+            if (admin == null || admin.Role != HotelBooking.Domain.Enums.UserRole.HotelAdmin)
+                throw new KeyNotFoundException("Hotel admin not found.");
+
+            await _unitOfWork.Users.DeleteAsync(admin);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// All counts/sums are computed at the database level via IDashboardRepository.
+        /// Queries run concurrently — no full table scans in memory.
+        /// </summary>
         public async Task<DashboardDto> GetDashboardAsync()
         {
-            var hotels = await _unitOfWork.Hotels.GetAllAsync();
-            var rooms = await _unitOfWork.Rooms.GetAllAsync();
-            var users = await _unitOfWork.Users.GetAllAsync();
-            var bookings = await _unitOfWork.Bookings.GetAllBookingsAsync();
-            var payments = await _unitOfWork.Payments.GetAllPaymentsAsync();
+            var db = _unitOfWork.Dashboard;
 
-            var allBookings = bookings.ToList();
-            var allPayments = payments.ToList();
-
-            var now = DateTime.UtcNow;
-            var startOfMonth = new DateTime(now.Year, now.Month, 1);
-
-            var successfulPayments = allPayments
-                .Where(p => p.Status == PaymentStatus.Success)
-                .ToList();
-
-            var totalRevenue = successfulPayments.Sum(p => p.Amount);
-
-            var revenueThisMonth = successfulPayments
-                .Where(p => p.PaidAt >= startOfMonth)
-                .Sum(p => p.Amount);
-
-            var bookingsThisMonth = allBookings
-                .Count(b => b.CreatedAt >= startOfMonth);
-
-            // Occupancy rate — confirmed + completed bookings / total rooms
-            var activeBookings = allBookings
-                .Count(b => b.Status == BookingStatus.Confirmed ||
-                            b.Status == BookingStatus.Completed);
-
-            var totalRooms = rooms.Count();
-            var occupancyRate = totalRooms > 0
-                ? Math.Round((double)activeBookings / totalRooms * 100, 1)
-                : 0;
+            // DbContext is not thread-safe, so we must await these sequentially.
+            // Since these are DB-level scalar queries, performance is still excellent.
+            var totalHotels = await db.GetTotalHotelsAsync();
+            var totalRooms = await db.GetTotalRoomsAsync();
+            var totalUsers = await db.GetTotalUsersAsync();
+            var totalBookings = await db.GetTotalBookingsAsync();
+            var pending = await db.GetBookingsByStatusAsync(BookingStatus.Pending);
+            var confirmed = await db.GetBookingsByStatusAsync(BookingStatus.Confirmed);
+            var completed = await db.GetBookingsByStatusAsync(BookingStatus.Completed);
+            var cancelled = await db.GetBookingsByStatusAsync(BookingStatus.Cancelled);
+            var bookingsThisMonth = await db.GetBookingsThisMonthAsync();
+            var totalRevenue = await db.GetTotalRevenueAsync();
+            var revenueThisMonth = await db.GetRevenueThisMonthAsync();
+            var occupancy = await db.GetOccupancyRateAsync();
 
             return new DashboardDto
             {
-                TotalHotels = hotels.Count(),
+                TotalHotels = totalHotels,
                 TotalRooms = totalRooms,
-                TotalUsers = users.Count(),
-                TotalBookings = allBookings.Count,
-                PendingBookings = allBookings
-                    .Count(b => b.Status == BookingStatus.Pending),
-                ConfirmedBookings = allBookings
-                    .Count(b => b.Status == BookingStatus.Confirmed),
-                CompletedBookings = allBookings
-                    .Count(b => b.Status == BookingStatus.Completed),
-                CancelledBookings = allBookings
-                    .Count(b => b.Status == BookingStatus.Cancelled),
+                TotalUsers = totalUsers,
+                TotalBookings = totalBookings,
+                PendingBookings = pending,
+                ConfirmedBookings = confirmed,
+                CompletedBookings = completed,
+                CancelledBookings = cancelled,
+                BookingsThisMonth = bookingsThisMonth,
                 TotalRevenue = totalRevenue,
                 RevenueThisMonth = revenueThisMonth,
-                BookingsThisMonth = bookingsThisMonth,
-                AverageOccupancyRate = occupancyRate
+                AverageOccupancyRate = occupancy
             };
         }
 
@@ -76,18 +136,16 @@ namespace HotelBooking.Application.Services
             DateTime fromDate, DateTime toDate)
         {
             if (toDate < fromDate)
-                throw new ArgumentException(
-                    "To date must be after from date.");
+                throw new ArgumentException("To date must be after from date.");
 
             var bookings = await _unitOfWork.Bookings.GetAllBookingsAsync();
 
             return bookings
-                .Where(b => b.CreatedAt.Date >= fromDate.Date &&
-                            b.CreatedAt.Date <= toDate.Date)
+                .Where(b => b.CreatedAt.Date >= fromDate.Date && b.CreatedAt.Date <= toDate.Date)
                 .Select(b => new BookingReportDto
                 {
                     BookingId = b.Id,
-                    UserName = $"{b.User?.FirstName} {b.User?.LastName}",
+                    UserName = b.User != null ? $"{b.User.FirstName} {b.User.LastName}" : "—",
                     HotelName = b.Room?.Hotel?.Name,
                     RoomNumber = b.Room?.RoomNumber,
                     CheckInDate = b.CheckInDate,
@@ -106,25 +164,16 @@ namespace HotelBooking.Application.Services
             DateTime fromDate, DateTime toDate)
         {
             if (toDate < fromDate)
-                throw new ArgumentException(
-                    "To date must be after from date.");
+                throw new ArgumentException("To date must be after from date.");
 
             var payments = await _unitOfWork.Payments.GetAllPaymentsAsync();
 
-            var filtered = payments
+            return payments
                 .Where(p => p.Status == PaymentStatus.Success &&
                             p.PaidAt.HasValue &&
                             p.PaidAt.Value.Date >= fromDate.Date &&
                             p.PaidAt.Value.Date <= toDate.Date)
-                .ToList();
-
-            // Group by month
-            var grouped = filtered
-                .GroupBy(p => new
-                {
-                    Year = p.PaidAt.Value.Year,
-                    Month = p.PaidAt.Value.Month
-                })
+                .GroupBy(p => new { p.PaidAt!.Value.Year, p.PaidAt.Value.Month })
                 .OrderBy(g => g.Key.Year)
                 .ThenBy(g => g.Key.Month)
                 .Select(g => new RevenueReportDto
@@ -135,8 +184,6 @@ namespace HotelBooking.Application.Services
                     AverageBookingValue = Math.Round(g.Average(p => p.Amount), 2)
                 })
                 .ToList();
-
-            return grouped;
         }
     }
 }

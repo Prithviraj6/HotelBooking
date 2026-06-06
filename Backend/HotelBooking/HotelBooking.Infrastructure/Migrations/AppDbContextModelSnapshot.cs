@@ -428,6 +428,9 @@ namespace HotelBooking.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("ManagedHotelId")
+                        .HasColumnType("int");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -448,6 +451,8 @@ namespace HotelBooking.Infrastructure.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("ManagedHotelId");
 
                     b.ToTable("Users");
                 });
@@ -549,6 +554,16 @@ namespace HotelBooking.Infrastructure.Migrations
                     b.Navigation("Hotel");
                 });
 
+            modelBuilder.Entity("HotelBooking.Domain.Entities.User", b =>
+                {
+                    b.HasOne("HotelBooking.Domain.Entities.Hotel", "ManagedHotel")
+                        .WithMany("Admins")
+                        .HasForeignKey("ManagedHotelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ManagedHotel");
+                });
+
             modelBuilder.Entity("HotelBooking.Domain.Entities.Booking", b =>
                 {
                     b.Navigation("Payment")
@@ -560,6 +575,8 @@ namespace HotelBooking.Infrastructure.Migrations
 
             modelBuilder.Entity("HotelBooking.Domain.Entities.Hotel", b =>
                 {
+                    b.Navigation("Admins");
+
                     b.Navigation("Promotions");
 
                     b.Navigation("Reviews");

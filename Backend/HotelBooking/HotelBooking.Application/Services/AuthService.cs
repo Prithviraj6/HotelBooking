@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BCrypt.Net;
 using HotelBooking.Application.DTOs.Auth;
 using HotelBooking.Application.Interfaces;
@@ -18,25 +18,26 @@ namespace HotelBooking.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly IMapper _mapper;
 
         public AuthService(
             IUnitOfWork unitOfWork,
             IConfiguration configuration,
-            IEmailService emailService)
+            IEmailService emailService,
+            IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _configuration = configuration;
             _emailService = emailService;
+            _mapper = mapper;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto)
         {
-            // Check if email already exists
             var emailExists = await _unitOfWork.Users.EmailExistsAsync(dto.Email);
             if (emailExists)
                 throw new ArgumentException("Email is already registered.");
 
-            // Create user
             var user = new User
             {
                 FirstName = dto.FirstName,
@@ -50,27 +51,18 @@ namespace HotelBooking.Application.Services
             await _unitOfWork.Users.AddAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
-            // Send welcome email
-            await _emailService.SendRegistrationConfirmationAsync(
-                user.Email, user.FirstName);
+            await _emailService.SendRegistrationConfirmationAsync(user.Email, user.FirstName);
 
-            // Return token
-            return GenerateAuthResponse(user);
+            return BuildAuthResponse(user);
         }
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
         {
-            // Find user by email
             var user = await _unitOfWork.Users.GetByEmailAsync(dto.Email.ToLower().Trim());
-            if (user == null)
+            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                 throw new UnauthorizedAccessException("Invalid email or password.");
 
-            // Verify password
-            var isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
-            if (!isPasswordValid)
-                throw new UnauthorizedAccessException("Invalid email or password.");
-
-            return GenerateAuthResponse(user);
+            return BuildAuthResponse(user);
         }
 
         public async Task<AuthResponseDto> GetProfileAsync(int userId)
@@ -79,7 +71,9 @@ namespace HotelBooking.Application.Services
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
 
-            return GenerateAuthResponse(user);
+            // Profile view does not issue a new token — reuse the existing one via mapping only
+            var response = _mapper.Map<AuthResponseDto>(user);
+            return response;
         }
 
         public async Task<AuthResponseDto> UpdateProfileAsync(int userId, UpdateProfileDto dto)
@@ -100,7 +94,7 @@ namespace HotelBooking.Application.Services
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
-            return GenerateAuthResponse(user);
+            return BuildAuthResponse(user);
         }
 
         public async Task ChangePasswordAsync(int userId, ChangePasswordDto dto)
@@ -109,49 +103,34 @@ namespace HotelBooking.Application.Services
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
 
-            // Verify current password
-            var isCurrentPasswordValid = BCrypt.Net.BCrypt
-                .Verify(dto.CurrentPassword, user.PasswordHash);
-
-            if (!isCurrentPasswordValid)
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
                 throw new ArgumentException("Current password is incorrect.");
 
-            // Hash and save new password
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        // ─── Private Helpers ────────────────────────────────────────────
+        // ─── Private Helpers ────────────────────────────────────────────────
 
-        private AuthResponseDto GenerateAuthResponse(User user)
+        /// <summary>Maps User → AuthResponseDto via AutoMapper then stamps the JWT token.</summary>
+        private AuthResponseDto BuildAuthResponse(User user)
         {
-            var token = GenerateJwtToken(user);
-            var expiry = DateTime.UtcNow.AddHours(
+            var response = _mapper.Map<AuthResponseDto>(user);
+            response.Token = GenerateJwtToken(user);
+            response.TokenExpiry = DateTime.UtcNow.AddHours(
                 double.Parse(_configuration["Jwt:ExpiryInHours"] ?? "24"));
-
-            return new AuthResponseDto
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                Role = user.Role.ToString(),
-                Token = token,
-                TokenExpiry = expiry
-            };
+            return response;
         }
 
         private string GenerateJwtToken(User user)
         {
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
 
-            var credentials = new SigningCredentials(
-                key, SecurityAlgorithms.HmacSha256);
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
@@ -159,6 +138,11 @@ namespace HotelBooking.Application.Services
                 new Claim(ClaimTypes.GivenName, user.FirstName),
                 new Claim(ClaimTypes.Surname, user.LastName)
             };
+
+            if (user.ManagedHotelId.HasValue)
+            {
+                claims.Add(new Claim("HotelId", user.ManagedHotelId.Value.ToString()));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],

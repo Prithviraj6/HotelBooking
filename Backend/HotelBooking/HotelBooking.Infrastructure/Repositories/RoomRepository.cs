@@ -1,4 +1,4 @@
-﻿using HotelBooking.Domain.Entities;
+using HotelBooking.Domain.Entities;
 using HotelBooking.Domain.Enums;
 using HotelBooking.Domain.Interfaces.Repositories;
 using HotelBooking.Infrastructure.Data;
@@ -39,5 +39,14 @@ namespace HotelBooking.Infrastructure.Repositories
                 b.Status != BookingStatus.Cancelled &&
                 b.CheckInDate < checkOut &&
                 b.CheckOutDate > checkIn);
+
+        public async Task<IEnumerable<Room>> GetAllRoomsWithDetailsAsync()
+            => await _dbSet
+                .Include(r => r.Hotel)
+                .Include(r => r.RoomType)
+                .Where(r => !r.IsDeleted)
+                .OrderBy(r => r.HotelId)
+                .ThenBy(r => r.RoomNumber)
+                .ToListAsync();
     }
 }

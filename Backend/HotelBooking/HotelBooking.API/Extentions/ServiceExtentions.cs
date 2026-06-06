@@ -1,5 +1,10 @@
-﻿using HotelBooking.Application.Interfaces;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.Interfaces;
+using HotelBooking.Application.Mappings;
 using HotelBooking.Application.Services;
+using HotelBooking.Application.Validators.Auth;
 using HotelBooking.Domain.Interfaces;
 using HotelBooking.Domain.Interfaces.Repositories;
 using HotelBooking.Infrastructure;
@@ -27,6 +32,7 @@ namespace HotelBooking.API.Extensions
             services.AddScoped<IPromotionService, PromotionService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IAdminService, AdminService>();
+            services.AddScoped<IFileService, HotelBooking.Infrastructure.Services.LocalFileService>();
             return services;
         }
 
@@ -41,8 +47,44 @@ namespace HotelBooking.API.Extensions
             services.AddScoped<IPaymentRepository, PaymentRepository>();
             services.AddScoped<IReviewRepository, ReviewRepository>();
             services.AddScoped<IPromotionRepository, PromotionRepository>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IRoomTypeRepository, RoomTypeRepository>();
+            services.AddScoped<IDashboardRepository, DashboardRepository>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            return services;
+        }
+
+        public static IServiceCollection AddMappings(this IServiceCollection services)
+        {
+            services.AddAutoMapper(cfg => 
+            {
+                cfg.AddProfile<MappingProfile>();
+            });
+            return services;
+        }
+
+        public static IServiceCollection AddValidation(this IServiceCollection services)
+        {
+            // Discovers and registers all FluentValidation validators in the Application assembly
+            services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+            // Auto-validate incoming requests — returns 400 with errors before hitting the controller
+            services.AddFluentValidationAutoValidation();
+
+            // Override default ASP.NET Core validation response to use our ApiResponse envelope
+            services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    var errors = context.ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .Distinct()
+                        .ToList();
+
+                    var response = ApiResponse<object>.Fail("Validation failed", 400, errors);
+                    return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(response);
+                };
+            });
+
             return services;
         }
 
@@ -65,7 +107,7 @@ namespace HotelBooking.API.Extensions
                     ValidIssuer = configuration["Jwt:Issuer"],
                     ValidAudience = configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"])),
+                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!)),
                     ClockSkew = TimeSpan.Zero
                 };
             });

@@ -1,9 +1,8 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.DTOs.Common;
 using HotelBooking.Application.DTOs.Hotel;
 using HotelBooking.Application.DTOs.Review;
 using HotelBooking.Application.DTOs.Room;
 using HotelBooking.Application.DTOs.RoomType;
-using HotelBooking.Domain.Common;
 
 namespace HotelBooking.Application.Interfaces
 {
@@ -13,6 +12,7 @@ namespace HotelBooking.Application.Interfaces
         Task<HotelResponseDto> GetByIdAsync(int id);
         Task<HotelResponseDto> CreateAsync(CreateHotelDto dto);
         Task<HotelResponseDto> UpdateAsync(int id, UpdateHotelDto dto);
+        Task UpdateImageAsync(int id, string imageUrl);
         Task DeleteAsync(int id);
         Task<IEnumerable<RoomResponseDto>> GetHotelRoomsAsync(int hotelId);
         Task<IEnumerable<ReviewResponseDto>> GetHotelReviewsAsync(int hotelId);

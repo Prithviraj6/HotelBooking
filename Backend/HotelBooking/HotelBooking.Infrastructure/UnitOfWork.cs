@@ -1,6 +1,7 @@
-﻿using HotelBooking.Domain.Interfaces;
+using HotelBooking.Domain.Interfaces;
 using HotelBooking.Domain.Interfaces.Repositories;
 using HotelBooking.Infrastructure.Data;
+
 namespace HotelBooking.Infrastructure
 {
     public class UnitOfWork : IUnitOfWork
@@ -14,8 +15,8 @@ namespace HotelBooking.Infrastructure
         public IPaymentRepository Payments { get; private set; }
         public IReviewRepository Reviews { get; private set; }
         public IPromotionRepository Promotions { get; private set; }
-
         public IRoomTypeRepository RoomTypes { get; private set; }
+        public IDashboardRepository Dashboard { get; private set; }
 
         public UnitOfWork(AppDbContext context,
             IUserRepository users,
@@ -25,7 +26,8 @@ namespace HotelBooking.Infrastructure
             IPaymentRepository payments,
             IReviewRepository reviews,
             IPromotionRepository promotions,
-            IRoomTypeRepository roomTypes)
+            IRoomTypeRepository roomTypes,
+            IDashboardRepository dashboard)
         {
             _context = context;
             Users = users;
@@ -36,6 +38,7 @@ namespace HotelBooking.Infrastructure
             Reviews = reviews;
             Promotions = promotions;
             RoomTypes = roomTypes;
+            Dashboard = dashboard;
         }
 
         public async Task<int> SaveChangesAsync()

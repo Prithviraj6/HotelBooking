@@ -1,4 +1,5 @@
-﻿using HotelBooking.Application.DTOs.Promotion;
+using AutoMapper;
+using HotelBooking.Application.DTOs.Promotion;
 using HotelBooking.Application.Interfaces;
 using HotelBooking.Domain.Entities;
 using HotelBooking.Domain.Interfaces;
@@ -8,10 +9,12 @@ namespace HotelBooking.Application.Services
     public class PromotionService : IPromotionService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public PromotionService(IUnitOfWork unitOfWork)
+        public PromotionService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         public async Task<PromotionResponseDto> ValidateAsync(string code, int? hotelId)
@@ -19,12 +22,10 @@ namespace HotelBooking.Application.Services
             if (string.IsNullOrWhiteSpace(code))
                 throw new ArgumentException("Promo code cannot be empty.");
 
-            var promotion = await _unitOfWork.Promotions.GetByCodeAsync(code);
-
+            var promotion = await _unitOfWork.Promotions.GetByCodeAsync(code.ToUpper().Trim());
             if (promotion == null)
                 throw new KeyNotFoundException("Promo code not found or inactive.");
 
-            // Check validity dates
             if (promotion.ValidFrom > DateTime.UtcNow)
                 throw new InvalidOperationException(
                     $"Promo code is not valid yet. Valid from {promotion.ValidFrom:dd MMM yyyy}.");
@@ -32,13 +33,10 @@ namespace HotelBooking.Application.Services
             if (promotion.ValidTo < DateTime.UtcNow)
                 throw new InvalidOperationException("Promo code has expired.");
 
-            // Check usage limit
             if (promotion.MaxUsageCount.HasValue &&
                 promotion.UsedCount >= promotion.MaxUsageCount.Value)
-                throw new InvalidOperationException(
-                    "Promo code has reached its maximum usage limit.");
+                throw new InvalidOperationException("Promo code has reached its maximum usage limit.");
 
-            // Check hotel specific promo
             if (promotion.HotelId.HasValue)
             {
                 if (!hotelId.HasValue)
@@ -46,47 +44,34 @@ namespace HotelBooking.Application.Services
                         "This promo code is for a specific hotel. Please provide hotel ID.");
 
                 if (promotion.HotelId != hotelId)
-                    throw new InvalidOperationException(
-                        "Promo code is not valid for this hotel.");
+                    throw new InvalidOperationException("Promo code is not valid for this hotel.");
             }
 
-            var hotelName = promotion.Hotel?.Name;
-            if (promotion.HotelId.HasValue && hotelName == null)
-            {
-                var hotel = await _unitOfWork.Hotels
-                    .GetByIdAsync(promotion.HotelId.Value);
-                hotelName = hotel?.Name;
-            }
+            // Ensure hotel nav prop is resolved for AutoMapper
+            if (promotion.HotelId.HasValue && promotion.Hotel == null)
+                promotion.Hotel = await _unitOfWork.Hotels.GetByIdAsync(promotion.HotelId.Value);
 
-            return MapToResponseDto(promotion, hotelName);
+            return _mapper.Map<PromotionResponseDto>(promotion);
         }
 
         public async Task<PromotionResponseDto> CreateAsync(CreatePromotionDto dto)
         {
-            // Validate dates
             if (dto.ValidTo <= dto.ValidFrom)
-                throw new ArgumentException(
-                    "Valid To date must be after Valid From date.");
+                throw new ArgumentException("Valid To date must be after Valid From date.");
 
             if (dto.DiscountPercent <= 0 || dto.DiscountPercent > 100)
-                throw new ArgumentException(
-                    "Discount percent must be between 1 and 100.");
+                throw new ArgumentException("Discount percent must be between 1 and 100.");
 
-            // Check promo code is unique
-            var existing = await _unitOfWork.Promotions.GetByCodeAsync(dto.Code);
+            var existing = await _unitOfWork.Promotions.GetByCodeAsync(dto.Code.ToUpper().Trim());
             if (existing != null)
-                throw new ArgumentException(
-                    $"Promo code '{dto.Code}' already exists.");
+                throw new ArgumentException($"Promo code '{dto.Code}' already exists.");
 
-            // If hotel specific check hotel exists
-            string hotelName = null;
+            Hotel hotelEntity = null;
             if (dto.HotelId.HasValue)
             {
-                var hotel = await _unitOfWork.Hotels.GetByIdAsync(dto.HotelId.Value);
-                if (hotel == null)
-                    throw new KeyNotFoundException(
-                        $"Hotel with ID {dto.HotelId} not found.");
-                hotelName = hotel.Name;
+                hotelEntity = await _unitOfWork.Hotels.GetByIdAsync(dto.HotelId.Value);
+                if (hotelEntity == null)
+                    throw new KeyNotFoundException($"Hotel with ID {dto.HotelId} not found.");
             }
 
             var promotion = new Promotion
@@ -99,70 +84,51 @@ namespace HotelBooking.Application.Services
                 ValidTo = dto.ValidTo,
                 MaxUsageCount = dto.MaxUsageCount,
                 UsedCount = 0,
-                IsActive = true
+                IsActive = true,
+                Hotel = hotelEntity
             };
 
             await _unitOfWork.Promotions.AddAsync(promotion);
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponseDto(promotion, hotelName);
+            return _mapper.Map<PromotionResponseDto>(promotion);
         }
 
+        /// <summary>
+        /// Uses GetAllWithHotelAsync — single query with JOIN instead of N+1 per hotel.
+        /// </summary>
         public async Task<IEnumerable<PromotionResponseDto>> GetAllAsync()
         {
-            var promotions = await _unitOfWork.Promotions.GetAllAsync();
-            var result = new List<PromotionResponseDto>();
-
-            foreach (var promotion in promotions)
-            {
-                string hotelName = null;
-                if (promotion.HotelId.HasValue)
-                {
-                    var hotel = await _unitOfWork.Hotels
-                        .GetByIdAsync(promotion.HotelId.Value);
-                    hotelName = hotel?.Name;
-                }
-                result.Add(MapToResponseDto(promotion, hotelName));
-            }
-
-            return result;
+            var promotions = await _unitOfWork.Promotions.GetAllWithHotelAsync();
+            return _mapper.Map<List<PromotionResponseDto>>(promotions);
         }
 
         public async Task<PromotionResponseDto> UpdateAsync(int id, CreatePromotionDto dto)
         {
             var promotion = await _unitOfWork.Promotions.GetByIdAsync(id);
             if (promotion == null)
-                throw new KeyNotFoundException(
-                    $"Promotion with ID {id} not found.");
+                throw new KeyNotFoundException($"Promotion with ID {id} not found.");
 
-            // If code is changing check uniqueness
             if (!string.IsNullOrWhiteSpace(dto.Code) &&
                 dto.Code.ToUpper().Trim() != promotion.Code)
             {
-                var existing = await _unitOfWork.Promotions
-                    .GetByCodeAsync(dto.Code);
+                var existing = await _unitOfWork.Promotions.GetByCodeAsync(dto.Code);
                 if (existing != null)
-                    throw new ArgumentException(
-                        $"Promo code '{dto.Code}' already exists.");
+                    throw new ArgumentException($"Promo code '{dto.Code}' already exists.");
 
                 promotion.Code = dto.Code.ToUpper().Trim();
             }
 
-            // Validate dates
             if (dto.ValidTo <= dto.ValidFrom)
-                throw new ArgumentException(
-                    "Valid To date must be after Valid From date.");
+                throw new ArgumentException("Valid To date must be after Valid From date.");
 
-            // If hotel specific check hotel exists
-            string hotelName = null;
             if (dto.HotelId.HasValue)
             {
                 var hotel = await _unitOfWork.Hotels.GetByIdAsync(dto.HotelId.Value);
                 if (hotel == null)
-                    throw new KeyNotFoundException(
-                        $"Hotel with ID {dto.HotelId} not found.");
-                hotelName = hotel.Name;
+                    throw new KeyNotFoundException($"Hotel with ID {dto.HotelId} not found.");
                 promotion.HotelId = dto.HotelId;
+                promotion.Hotel = hotel;
             }
 
             promotion.Description = dto.Description;
@@ -174,40 +140,17 @@ namespace HotelBooking.Application.Services
             await _unitOfWork.Promotions.UpdateAsync(promotion);
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponseDto(promotion, hotelName);
+            return _mapper.Map<PromotionResponseDto>(promotion);
         }
 
         public async Task DeleteAsync(int id)
         {
             var promotion = await _unitOfWork.Promotions.GetByIdAsync(id);
             if (promotion == null)
-                throw new KeyNotFoundException(
-                    $"Promotion with ID {id} not found.");
+                throw new KeyNotFoundException($"Promotion with ID {id} not found.");
 
             await _unitOfWork.Promotions.DeleteAsync(promotion);
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        // ─── Private Mapper ──────────────────────────────────────────────
-
-        private static PromotionResponseDto MapToResponseDto(
-            Promotion promotion, string hotelName)
-        {
-            return new PromotionResponseDto
-            {
-                Id = promotion.Id,
-                HotelId = promotion.HotelId,
-                HotelName = hotelName,
-                Code = promotion.Code,
-                Description = promotion.Description,
-                DiscountPercent = promotion.DiscountPercent,
-                ValidFrom = promotion.ValidFrom,
-                ValidTo = promotion.ValidTo,
-                MaxUsageCount = promotion.MaxUsageCount,
-                UsedCount = promotion.UsedCount,
-                IsActive = promotion.IsActive,
-                CreatedAt = promotion.CreatedAt
-            };
         }
     }
 }

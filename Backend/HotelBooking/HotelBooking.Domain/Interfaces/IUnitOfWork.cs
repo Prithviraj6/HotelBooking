@@ -1,4 +1,4 @@
-﻿using HotelBooking.Domain.Interfaces.Repositories;
+using HotelBooking.Domain.Interfaces.Repositories;
 
 namespace HotelBooking.Domain.Interfaces
 {
@@ -12,6 +12,7 @@ namespace HotelBooking.Domain.Interfaces
         IReviewRepository Reviews { get; }
         IPromotionRepository Promotions { get; }
         IRoomTypeRepository RoomTypes { get; }
+        IDashboardRepository Dashboard { get; }
         Task<int> SaveChangesAsync();
     }
 }

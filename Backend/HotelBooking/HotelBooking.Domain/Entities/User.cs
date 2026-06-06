@@ -1,4 +1,4 @@
-﻿using HotelBooking.Domain.Common;
+using HotelBooking.Domain.Common;
 using HotelBooking.Domain.Enums;
 
 namespace HotelBooking.Domain.Entities
@@ -12,7 +12,9 @@ namespace HotelBooking.Domain.Entities
         public string PhoneNumber { get; set; }
         public UserRole Role { get; set; }
 
-        //Navigation
+        // Navigation
+        public int? ManagedHotelId { get; set; }
+        public Hotel? ManagedHotel { get; set; }
 
         public ICollection<Booking> Bookings { get; set; }
         public ICollection<Review> Reviews { get; set; }

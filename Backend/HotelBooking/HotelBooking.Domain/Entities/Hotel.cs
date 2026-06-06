@@ -1,4 +1,4 @@
-﻿using HotelBooking.Domain.Common;
+using HotelBooking.Domain.Common;
 
 namespace HotelBooking.Domain.Entities
 {
@@ -21,5 +21,6 @@ namespace HotelBooking.Domain.Entities
         public ICollection<RoomType> RoomTypes { get; set; }
         public ICollection<Review> Reviews { get; set; }
         public ICollection<Promotion> Promotions { get; set; }
+        public ICollection<User> Admins { get; set; }
     }
 }

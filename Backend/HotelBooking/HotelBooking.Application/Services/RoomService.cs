@@ -1,4 +1,5 @@
-﻿using HotelBooking.Application.DTOs.Room;
+using AutoMapper;
+using HotelBooking.Application.DTOs.Room;
 using HotelBooking.Application.Interfaces;
 using HotelBooking.Domain.Entities;
 using HotelBooking.Domain.Enums;
@@ -9,25 +10,21 @@ namespace HotelBooking.Application.Services
     public class RoomService : IRoomService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public RoomService(IUnitOfWork unitOfWork)
+        public RoomService(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
+        /// <summary>
+        /// Uses GetAllRoomsWithDetailsAsync — single SQL JOIN query (fixes N+1).
+        /// </summary>
         public async Task<IEnumerable<RoomResponseDto>> GetAllAsync()
         {
-            var rooms = await _unitOfWork.Rooms.GetAllAsync();
-            var result = new List<RoomResponseDto>();
-
-            foreach (var room in rooms)
-            {
-                var hotel = await _unitOfWork.Hotels.GetByIdAsync(room.HotelId);
-                var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(room.RoomTypeId);
-                result.Add(MapToResponseDto(room, hotel?.Name, roomType));
-            }
-
-            return result;
+            var rooms = await _unitOfWork.Rooms.GetAllRoomsWithDetailsAsync();
+            return _mapper.Map<List<RoomResponseDto>>(rooms);
         }
 
         public async Task<RoomResponseDto> GetByIdAsync(int id)
@@ -38,58 +35,49 @@ namespace HotelBooking.Application.Services
 
             var hotel = await _unitOfWork.Hotels.GetByIdAsync(room.HotelId);
             var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(room.RoomTypeId);
+            room.Hotel = hotel;
+            room.RoomType = roomType;
 
-            return MapToResponseDto(room, hotel?.Name, roomType);
+            return _mapper.Map<RoomResponseDto>(room);
         }
 
         public async Task<IEnumerable<RoomResponseDto>> GetAvailableRoomsAsync(
             int hotelId, DateTime checkIn, DateTime checkOut)
         {
-            // Validate dates
             if (checkIn.Date < DateTime.UtcNow.Date)
                 throw new ArgumentException("Check-in date cannot be in the past.");
 
             if (checkOut.Date <= checkIn.Date)
-                throw new ArgumentException(
-                    "Check-out date must be after check-in date.");
+                throw new ArgumentException("Check-out date must be after check-in date.");
 
-            // Check hotel exists
             var hotel = await _unitOfWork.Hotels.GetByIdAsync(hotelId);
             if (hotel == null)
                 throw new KeyNotFoundException($"Hotel with ID {hotelId} not found.");
 
-            var rooms = await _unitOfWork.Rooms
-                .GetAvailableRoomsAsync(hotelId, checkIn, checkOut);
+            var rooms = await _unitOfWork.Rooms.GetAvailableRoomsAsync(hotelId, checkIn, checkOut);
 
-            return rooms.Select(r =>
-                MapToResponseDto(r, hotel.Name, r.RoomType)).ToList();
+            // Attach hotel to each room so AutoMapper can resolve HotelName
+            foreach (var r in rooms) r.Hotel = hotel;
+
+            return _mapper.Map<List<RoomResponseDto>>(rooms);
         }
 
         public async Task<RoomResponseDto> CreateAsync(CreateRoomDto dto)
         {
-            // Check hotel exists
             var hotel = await _unitOfWork.Hotels.GetByIdAsync(dto.HotelId);
             if (hotel == null)
                 throw new KeyNotFoundException($"Hotel with ID {dto.HotelId} not found.");
 
-            // Check room type exists and belongs to same hotel
             var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(dto.RoomTypeId);
             if (roomType == null)
-                throw new KeyNotFoundException(
-                    $"Room type with ID {dto.RoomTypeId} not found.");
+                throw new KeyNotFoundException($"Room type with ID {dto.RoomTypeId} not found.");
 
             if (roomType.HotelId != dto.HotelId)
-                throw new ArgumentException(
-                    "Room type does not belong to the specified hotel.");
+                throw new ArgumentException("Room type does not belong to the specified hotel.");
 
-            // Check room number is unique within hotel
             var existingRooms = await _unitOfWork.Rooms.GetRoomsByHotelAsync(dto.HotelId);
-            var roomNumberExists = existingRooms.Any(r =>
-                r.RoomNumber.ToLower() == dto.RoomNumber.ToLower() && !r.IsDeleted);
-
-            if (roomNumberExists)
-                throw new ArgumentException(
-                    $"Room number {dto.RoomNumber} already exists in this hotel.");
+            if (existingRooms.Any(r => r.RoomNumber.ToLower() == dto.RoomNumber.ToLower() && !r.IsDeleted))
+                throw new ArgumentException($"Room number {dto.RoomNumber} already exists in this hotel.");
 
             var room = new Room
             {
@@ -97,13 +85,15 @@ namespace HotelBooking.Application.Services
                 RoomTypeId = dto.RoomTypeId,
                 RoomNumber = dto.RoomNumber,
                 FloorNumber = dto.FloorNumber,
-                Status = RoomStatus.Available
+                Status = RoomStatus.Available,
+                Hotel = hotel,
+                RoomType = roomType
             };
 
             await _unitOfWork.Rooms.AddAsync(room);
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponseDto(room, hotel.Name, roomType);
+            return _mapper.Map<RoomResponseDto>(room);
         }
 
         public async Task<RoomResponseDto> UpdateAsync(int id, UpdateRoomDto dto)
@@ -112,37 +102,29 @@ namespace HotelBooking.Application.Services
             if (room == null)
                 throw new KeyNotFoundException($"Room with ID {id} not found.");
 
-            // If changing room number check uniqueness
-            if (!string.IsNullOrWhiteSpace(dto.RoomNumber) &&
-                dto.RoomNumber != room.RoomNumber)
+            if (!string.IsNullOrWhiteSpace(dto.RoomNumber) && dto.RoomNumber != room.RoomNumber)
             {
-                var existingRooms = await _unitOfWork.Rooms
-                    .GetRoomsByHotelAsync(room.HotelId);
-                var roomNumberExists = existingRooms.Any(r =>
+                var existingRooms = await _unitOfWork.Rooms.GetRoomsByHotelAsync(room.HotelId);
+                if (existingRooms.Any(r =>
                     r.RoomNumber.ToLower() == dto.RoomNumber.ToLower() &&
-                    r.Id != id &&
-                    !r.IsDeleted);
-
-                if (roomNumberExists)
-                    throw new ArgumentException(
-                        $"Room number {dto.RoomNumber} already exists in this hotel.");
+                    r.Id != id && !r.IsDeleted))
+                    throw new ArgumentException($"Room number {dto.RoomNumber} already exists in this hotel.");
 
                 room.RoomNumber = dto.RoomNumber;
             }
 
-            if (dto.FloorNumber.HasValue)
-                room.FloorNumber = dto.FloorNumber.Value;
-
-            if (dto.Status.HasValue)
-                room.Status = dto.Status.Value;
+            if (dto.FloorNumber.HasValue) room.FloorNumber = dto.FloorNumber.Value;
+            if (dto.Status.HasValue) room.Status = dto.Status.Value;
 
             await _unitOfWork.Rooms.UpdateAsync(room);
             await _unitOfWork.SaveChangesAsync();
 
             var hotel = await _unitOfWork.Hotels.GetByIdAsync(room.HotelId);
             var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(room.RoomTypeId);
+            room.Hotel = hotel;
+            room.RoomType = roomType;
 
-            return MapToResponseDto(room, hotel?.Name, roomType);
+            return _mapper.Map<RoomResponseDto>(room);
         }
 
         public async Task DeleteAsync(int id)
@@ -151,13 +133,11 @@ namespace HotelBooking.Application.Services
             if (room == null)
                 throw new KeyNotFoundException($"Room with ID {id} not found.");
 
-            // Cannot delete room with active bookings
             var isAvailable = await _unitOfWork.Rooms.IsRoomAvailableAsync(
                 id, DateTime.UtcNow, DateTime.UtcNow.AddYears(1));
 
             if (!isAvailable)
-                throw new InvalidOperationException(
-                    "Cannot delete room with active or upcoming bookings.");
+                throw new InvalidOperationException("Cannot delete room with active or upcoming bookings.");
 
             await _unitOfWork.Rooms.DeleteAsync(room);
             await _unitOfWork.SaveChangesAsync();
@@ -169,7 +149,6 @@ namespace HotelBooking.Application.Services
             if (room == null)
                 throw new KeyNotFoundException($"Room with ID {id} not found.");
 
-            // Cannot mark as available if it has active bookings
             if (status == RoomStatus.Available)
             {
                 var hasActiveBookings = !await _unitOfWork.Rooms.IsRoomAvailableAsync(
@@ -183,29 +162,6 @@ namespace HotelBooking.Application.Services
             room.Status = status;
             await _unitOfWork.Rooms.UpdateAsync(room);
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        // ─── Private Mapper ──────────────────────────────────────────────
-
-        private static RoomResponseDto MapToResponseDto(
-            Room room, string hotelName, RoomType roomType)
-        {
-            return new RoomResponseDto
-            {
-                Id = room.Id,
-                HotelId = room.HotelId,
-                HotelName = hotelName,
-                RoomTypeId = room.RoomTypeId,
-                RoomTypeName = roomType?.TypeName,
-                Category = roomType?.Category.ToString(),
-                RoomNumber = room.RoomNumber,
-                FloorNumber = room.FloorNumber,
-                Status = room.Status.ToString(),
-                PricePerNight = roomType?.PricePerNight ?? 0,
-                MaxOccupancy = roomType?.MaxOccupancy ?? 0,
-                Amenities = roomType?.Amenities,
-                CreatedAt = room.CreatedAt
-            };
         }
     }
 }

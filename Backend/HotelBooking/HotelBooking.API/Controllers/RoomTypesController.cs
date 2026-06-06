@@ -1,7 +1,9 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.API.Extensions;
+using HotelBooking.Application.DTOs.Common;
 using HotelBooking.Application.DTOs.RoomType;
 using HotelBooking.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HotelBooking.API.Controllers
@@ -33,37 +35,57 @@ namespace HotelBooking.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,HotelAdmin")]
         public async Task<IActionResult> Create([FromBody] CreateRoomTypeDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ApiResponse<object>.Fail(
-                    "Validation failed", 400,
-                    ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList()));
+            if (User.IsHotelAdmin() && dto.HotelId != User.GetManagedHotelId())
+                return Forbid("You can only create room types for the hotel you manage.");
 
             var result = await _roomTypeService.CreateAsync(dto);
             return StatusCode(201, ApiResponse<RoomTypeResponseDto>.Created(result));
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,HotelAdmin")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateRoomTypeDto dto)
         {
+            var roomType = await _roomTypeService.GetByIdAsync(id);
+            if (User.IsHotelAdmin() && roomType.HotelId != User.GetManagedHotelId())
+                return Forbid("You can only update room types for the hotel you manage.");
+
             var result = await _roomTypeService.UpdateAsync(id, dto);
             return Ok(ApiResponse<RoomTypeResponseDto>.Ok(result,
                 "Room type updated successfully"));
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "SuperAdmin,HotelAdmin")]
         public async Task<IActionResult> Delete(int id)
         {
+            var roomType = await _roomTypeService.GetByIdAsync(id);
+            if (User.IsHotelAdmin() && roomType.HotelId != User.GetManagedHotelId())
+                return Forbid("You can only delete room types for the hotel you manage.");
+
             await _roomTypeService.DeleteAsync(id);
             return Ok(ApiResponse<object>.Ok(null,
                 "Room type deleted successfully"));
+        }
+
+        [HttpPost("{id}/image")]
+        [Authorize(Roles = "SuperAdmin,HotelAdmin")]
+        public async Task<IActionResult> UploadImage(int id, IFormFile file, [FromServices] IFileService fileService)
+        {
+            var roomType = await _roomTypeService.GetByIdAsync(id);
+            if (User.IsHotelAdmin() && roomType.HotelId != User.GetManagedHotelId())
+                return Forbid("You can only upload images for room types in the hotel you manage.");
+
+            // Upload image
+            var relativeUrl = await fileService.UploadImageAsync(file, "roomtypes");
+            
+            // Update room type record
+            await _roomTypeService.UpdateImageAsync(id, relativeUrl);
+
+            return Ok(ApiResponse<string>.Ok(relativeUrl, "Room type image uploaded successfully."));
         }
     }
 }

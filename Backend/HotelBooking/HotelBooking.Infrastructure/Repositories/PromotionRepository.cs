@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using HotelBooking.Domain.Entities;
 using HotelBooking.Domain.Interfaces.Repositories;
 using HotelBooking.Infrastructure.Data;
@@ -22,6 +22,13 @@ namespace HotelBooking.Infrastructure.Repositories
                     !p.IsDeleted &&
                     p.ValidFrom <= DateTime.UtcNow &&
                     p.ValidTo >= DateTime.UtcNow)
+                .ToListAsync();
+
+        public async Task<IEnumerable<Promotion>> GetAllWithHotelAsync()
+            => await _dbSet
+                .Include(p => p.Hotel)
+                .Where(p => !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
     }
 }

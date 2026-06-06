@@ -1,4 +1,5 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.DTOs.Admin;
+using HotelBooking.Application.DTOs.Common;
 using HotelBooking.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ namespace HotelBooking.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin,HotelAdmin")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -57,6 +58,30 @@ namespace HotelBooking.API.Controllers
             return Ok(ApiResponse<object>.Ok(result,
                 $"Revenue report from {fromDate:dd MMM yyyy} " +
                 $"to {toDate:dd MMM yyyy}"));
+        }
+
+        [HttpPost("hotel-admins")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<IActionResult> CreateHotelAdmin([FromBody] CreateHotelAdminDto dto)
+        {
+            var result = await _adminService.RegisterHotelAdminAsync(dto);
+            return Ok(ApiResponse<HotelAdminResponseDto>.Ok(result, "Hotel Admin successfully registered"));
+        }
+
+        [HttpGet("hotel-admins")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<IActionResult> GetHotelAdmins()
+        {
+            var result = await _adminService.GetHotelAdminsAsync();
+            return Ok(ApiResponse<IEnumerable<HotelAdminResponseDto>>.Ok(result, "Hotel Admins retrieved successfully"));
+        }
+
+        [HttpDelete("hotel-admins/{id}")]
+        [Authorize(Roles = "SuperAdmin")]
+        public async Task<IActionResult> RevokeHotelAdmin(int id)
+        {
+            await _adminService.RevokeHotelAdminAsync(id);
+            return Ok(ApiResponse<object>.Ok(null, "Hotel Admin access successfully revoked"));
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using HotelBooking.Application.DTOs.RoomType;
+using HotelBooking.Application.DTOs.RoomType;
 
 namespace HotelBooking.Application.Interfaces
 {
@@ -8,6 +8,7 @@ namespace HotelBooking.Application.Interfaces
         Task<RoomTypeResponseDto> GetByIdAsync(int id);
         Task<RoomTypeResponseDto> CreateAsync(CreateRoomTypeDto dto);
         Task<RoomTypeResponseDto> UpdateAsync(int id, UpdateRoomTypeDto dto);
+        Task UpdateImageAsync(int id, string imageUrl);
         Task DeleteAsync(int id);
     }
 }

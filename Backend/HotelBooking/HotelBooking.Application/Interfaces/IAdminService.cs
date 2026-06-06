@@ -1,4 +1,5 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.DTOs.Admin;
+using HotelBooking.Application.DTOs.Common;
 
 namespace HotelBooking.Application.Interfaces
 {
@@ -9,5 +10,9 @@ namespace HotelBooking.Application.Interfaces
             DateTime fromDate, DateTime toDate);
         Task<IEnumerable<RevenueReportDto>> GetRevenueReportAsync(
             DateTime fromDate, DateTime toDate);
+            
+        Task<HotelAdminResponseDto> RegisterHotelAdminAsync(CreateHotelAdminDto dto);
+        Task<IEnumerable<HotelAdminResponseDto>> GetHotelAdminsAsync();
+        Task RevokeHotelAdminAsync(int adminId);
     }
 }

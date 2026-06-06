@@ -1,4 +1,4 @@
-﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.DTOs.Common;
 using HotelBooking.Application.DTOs.Review;
 using HotelBooking.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -22,44 +22,25 @@ namespace HotelBooking.API.Controllers
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> Create([FromBody] CreateReviewDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ApiResponse<object>.Fail(
-                    "Validation failed", 400,
-                    ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList()));
-
             var userId = GetUserId();
             var result = await _reviewService.CreateAsync(userId, dto);
-            return StatusCode(201, ApiResponse<ReviewResponseDto>.Created(result,
-                "Review posted successfully"));
+            return StatusCode(201, ApiResponse<ReviewResponseDto>.Created(result, "Review posted successfully"));
         }
 
         [HttpGet("hotel/{hotelId}")]
         public async Task<IActionResult> GetByHotel(int hotelId)
         {
             var result = await _reviewService.GetByHotelAsync(hotelId);
-            return Ok(ApiResponse<object>.Ok(result,
-                "Reviews retrieved successfully"));
+            return Ok(ApiResponse<object>.Ok(result, "Reviews retrieved successfully"));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Customer")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateReviewDto dto)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ApiResponse<object>.Fail(
-                    "Validation failed", 400,
-                    ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList()));
-
             var userId = GetUserId();
             var result = await _reviewService.UpdateAsync(id, userId, dto);
-            return Ok(ApiResponse<ReviewResponseDto>.Ok(result,
-                "Review updated successfully"));
+            return Ok(ApiResponse<ReviewResponseDto>.Ok(result, "Review updated successfully"));
         }
 
         [HttpDelete("{id}")]
@@ -69,8 +50,7 @@ namespace HotelBooking.API.Controllers
             var userId = GetUserId();
             var role = GetUserRole();
             await _reviewService.DeleteAsync(id, userId, role);
-            return Ok(ApiResponse<object>.Ok(null,
-                "Review deleted successfully"));
+            return Ok(ApiResponse<object>.Ok(null, "Review deleted successfully"));
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────
