@@ -1,10 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Application.DTOs.Payment;
 
 namespace HotelBooking.Application.Interfaces
 {
-    internal interface IPaymentService
+    public interface IPaymentService
     {
+        Task<PaymentResponseDto> CreateAsync(int userId, CreatePaymentDto dto);
+        Task<PaymentResponseDto> GetByBookingAsync(int bookingId, int userId, string role);
+        Task<IEnumerable<PaymentResponseDto>> GetAllAsync();
+        Task<PaymentResponseDto> RefundAsync(int paymentId);
     }
 }
