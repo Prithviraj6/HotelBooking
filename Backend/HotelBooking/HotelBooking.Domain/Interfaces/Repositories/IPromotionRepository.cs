@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Entities;
 
 namespace HotelBooking.Domain.Interfaces.Repositories
 {
-    internal interface IPromotionRepository
+    public interface IPromotionRepository : IGenericRepository<Promotion>
     {
+        Task<Promotion> GetByCodeAsync(string code);
+        Task<IEnumerable<Promotion>> GetActivePromotionsAsync();
     }
 }

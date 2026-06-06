@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Entities;
 
 namespace HotelBooking.Domain.Interfaces.Repositories
 {
-    internal interface IUserRepository
+    public interface IUserRepository : IGenericRepository<User>
     {
+        Task<User> GetByEmailAsync(string email);
+        Task<bool> EmailExistsAsync(string email);
     }
 }

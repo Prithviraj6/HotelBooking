@@ -1,10 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Entities;
 
 namespace HotelBooking.Domain.Interfaces.Repositories
 {
-    internal interface IBookingRepository
+    public interface IBookingRepository : IGenericRepository<Booking>
     {
+        Task<IEnumerable<Booking>> GetBookingsByUserAsync(int userId);
+        Task<IEnumerable<Booking>> GetAllBookingsAsync();
+        Task<Booking> GetBookingWithDetailsAsync(int bookingId);
+        Task<bool> HasUserCompletedBookingAsync(int userId, int hotelId);
     }
 }

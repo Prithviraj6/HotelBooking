@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Entities;
 
 namespace HotelBooking.Domain.Interfaces.Repositories
 {
-    internal interface IReviewRepository
+    public interface IReviewRepository : IGenericRepository<Review>
     {
+        Task<IEnumerable<Review>> GetReviewsByHotelAsync(int hotelId);
+        Task<bool> HasUserReviewedBookingAsync(int userId, int bookingId);
     }
 }

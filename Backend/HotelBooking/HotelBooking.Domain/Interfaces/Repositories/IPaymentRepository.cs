@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Entities;
 
 namespace HotelBooking.Domain.Interfaces.Repositories
 {
-    internal interface IPaymentRepository
+    public interface IPaymentRepository : IGenericRepository<Payment>
     {
+        Task<Payment> GetPaymentByBookingAsync(int bookingId);
+        Task<IEnumerable<Payment>> GetAllPaymentsAsync();
     }
 }
