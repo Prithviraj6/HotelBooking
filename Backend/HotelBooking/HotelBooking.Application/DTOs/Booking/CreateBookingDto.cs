@@ -1,10 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace HotelBooking.Application.DTOs.Booking
 {
-    internal class CreateBookingDto
+    public class CreateBookingDto
     {
+        [Required]
+        public int RoomId { get; set; }
+
+        [Required]
+        public DateTime CheckInDate { get; set; }
+
+        [Required]
+        public DateTime CheckOutDate { get; set; }
+
+        public string SpecialRequests { get; set; }
+        public string PromoCode { get; set; }
     }
 }

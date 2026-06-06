@@ -3,28 +3,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HotelBooking.Application.DTOs.RoomType
 {
-    public class CreateRoomTypeDto
+    public class UpdateRoomTypeDto
     {
-        [Required]
-        public int HotelId { get; set; }
-
-        [Required]
-        [MaxLength(100)]
         public string TypeName { get; set; }
-
-        [Required]
-        public RoomCategory Category { get; set; }
-
+        public RoomCategory? Category { get; set; }
         public string Description { get; set; }
 
-        [Required]
         [Range(1, 100000)]
-        public decimal PricePerNight { get; set; }
+        public decimal? PricePerNight { get; set; }
 
-        [Required]
         [Range(1, 10)]
-        public int MaxOccupancy { get; set; }
-
+        public int? MaxOccupancy { get; set; }
         public string Amenities { get; set; }
         public string ImageUrl { get; set; }
     }
