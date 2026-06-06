@@ -11,6 +11,7 @@ namespace HotelBooking.Domain.Interfaces
         IPaymentRepository Payments { get; }
         IReviewRepository Reviews { get; }
         IPromotionRepository Promotions { get; }
+        IRoomTypeRepository RoomTypes { get; }
         Task<int> SaveChangesAsync();
     }
 }
