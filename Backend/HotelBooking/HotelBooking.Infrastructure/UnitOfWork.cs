@@ -15,6 +15,8 @@ namespace HotelBooking.Infrastructure
         public IReviewRepository Reviews { get; private set; }
         public IPromotionRepository Promotions { get; private set; }
 
+        public IRoomTypeRepository RoomTypes { get; private set; }
+
         public UnitOfWork(AppDbContext context,
             IUserRepository users,
             IHotelRepository hotels,
@@ -22,7 +24,8 @@ namespace HotelBooking.Infrastructure
             IBookingRepository bookings,
             IPaymentRepository payments,
             IReviewRepository reviews,
-            IPromotionRepository promotions)
+            IPromotionRepository promotions,
+            IRoomTypeRepository roomTypes)
         {
             _context = context;
             Users = users;
@@ -32,6 +35,7 @@ namespace HotelBooking.Infrastructure
             Payments = payments;
             Reviews = reviews;
             Promotions = promotions;
+            RoomTypes = roomTypes;
         }
 
         public async Task<int> SaveChangesAsync()
