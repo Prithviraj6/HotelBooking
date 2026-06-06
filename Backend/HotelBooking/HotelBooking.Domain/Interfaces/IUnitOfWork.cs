@@ -1,10 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using HotelBooking.Domain.Interfaces.Repositories;
 
 namespace HotelBooking.Domain.Interfaces
 {
-    internal interface IUnitOfWork
+    public interface IUnitOfWork : IDisposable
     {
+        IUserRepository Users { get; }
+        IHotelRepository Hotels { get; }
+        IRoomRepository Rooms { get; }
+        IBookingRepository Bookings { get; }
+        IPaymentRepository Payments { get; }
+        IReviewRepository Reviews { get; }
+        IPromotionRepository Promotions { get; }
+        Task<int> SaveChangesAsync();
     }
 }
