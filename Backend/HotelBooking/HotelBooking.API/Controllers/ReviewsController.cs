@@ -1,12 +1,91 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using HotelBooking.Application.DTOs.Common;
+using HotelBooking.Application.DTOs.Review;
+using HotelBooking.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HotelBooking.API.Controllers
 {
-    public class ReviewsController : Controller
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ReviewsController : ControllerBase
     {
-        public IActionResult Index()
+        private readonly IReviewService _reviewService;
+
+        public ReviewsController(IReviewService reviewService)
         {
-            return View();
+            _reviewService = reviewService;
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> Create([FromBody] CreateReviewDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail(
+                    "Validation failed", 400,
+                    ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()));
+
+            var userId = GetUserId();
+            var result = await _reviewService.CreateAsync(userId, dto);
+            return StatusCode(201, ApiResponse<ReviewResponseDto>.Created(result,
+                "Review posted successfully"));
+        }
+
+        [HttpGet("hotel/{hotelId}")]
+        public async Task<IActionResult> GetByHotel(int hotelId)
+        {
+            var result = await _reviewService.GetByHotelAsync(hotelId);
+            return Ok(ApiResponse<object>.Ok(result,
+                "Reviews retrieved successfully"));
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateReviewDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail(
+                    "Validation failed", 400,
+                    ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()));
+
+            var userId = GetUserId();
+            var result = await _reviewService.UpdateAsync(id, userId, dto);
+            return Ok(ApiResponse<ReviewResponseDto>.Ok(result,
+                "Review updated successfully"));
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = GetUserId();
+            var role = GetUserRole();
+            await _reviewService.DeleteAsync(id, userId, role);
+            return Ok(ApiResponse<object>.Ok(null,
+                "Review deleted successfully"));
+        }
+
+        // ─── Helpers ─────────────────────────────────────────────────────
+
+        private int GetUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(claim))
+                throw new UnauthorizedAccessException("User not authenticated.");
+            return int.Parse(claim);
+        }
+
+        private string GetUserRole()
+        {
+            return User.FindFirst(ClaimTypes.Role)?.Value ?? "Customer";
         }
     }
 }
