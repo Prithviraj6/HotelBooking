@@ -14,5 +14,8 @@ namespace HotelBooking.Application.Interfaces
         Task<HotelAdminResponseDto> RegisterHotelAdminAsync(CreateHotelAdminDto dto);
         Task<IEnumerable<HotelAdminResponseDto>> GetHotelAdminsAsync();
         Task RevokeHotelAdminAsync(int adminId);
+
+        Task<PagedResponse<UserDto>> GetUsersAsync(int page, int pageSize);
+        Task<PagedResponse<HotelBooking.Application.DTOs.Booking.BookingResponseDto>> GetAllBookingsAsync(int page, int pageSize);
     }
 }

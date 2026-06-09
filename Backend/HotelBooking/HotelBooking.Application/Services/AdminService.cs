@@ -92,6 +92,55 @@ namespace HotelBooking.Application.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        public async Task<PagedResponse<UserDto>> GetUsersAsync(int page, int pageSize)
+        {
+            var users = await _unitOfWork.Users.GetAllAsync();
+            var totalRecords = users.Count();
+            var pagedUsers = users.OrderByDescending(u => u.Id)
+                                  .Skip((page - 1) * pageSize)
+                                  .Take(pageSize)
+                                  .ToList();
+
+            var dtos = pagedUsers.Select(u => new UserDto
+            {
+                Id = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                Role = u.Role.ToString(),
+                HotelId = u.ManagedHotelId,
+                CreatedAt = u.CreatedAt
+            }).ToList();
+
+            return new PagedResponse<UserDto>
+            {
+                Items = dtos,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalRecords
+            };
+        }
+
+        public async Task<PagedResponse<HotelBooking.Application.DTOs.Booking.BookingResponseDto>> GetAllBookingsAsync(int page, int pageSize)
+        {
+            var bookings = await _unitOfWork.Bookings.GetAllBookingsAsync();
+            var totalRecords = bookings.Count();
+            var pagedBookings = bookings.OrderByDescending(b => b.CreatedAt)
+                                        .Skip((page - 1) * pageSize)
+                                        .Take(pageSize)
+                                        .ToList();
+
+            var dtos = _mapper.Map<IEnumerable<HotelBooking.Application.DTOs.Booking.BookingResponseDto>>(pagedBookings).ToList();
+
+            return new PagedResponse<HotelBooking.Application.DTOs.Booking.BookingResponseDto>
+            {
+                Items = dtos,
+                Page = page,
+                PageSize = pageSize,
+                TotalCount = totalRecords
+            };
+        }
+
         /// <summary>
         /// All counts/sums are computed at the database level via IDashboardRepository.
         /// Queries run concurrently — no full table scans in memory.

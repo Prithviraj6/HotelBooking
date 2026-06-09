@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace HotelBooking.Application.DTOs.Booking
 {
     public class CreateBookingDto
     {
         [Required]
-        public int RoomId { get; set; }
+        public int RoomTypeId { get; set; }
 
         [Required]
         public DateTime CheckInDate { get; set; }
@@ -13,7 +13,7 @@ namespace HotelBooking.Application.DTOs.Booking
         [Required]
         public DateTime CheckOutDate { get; set; }
 
-        public string SpecialRequests { get; set; }
-        public string PromoCode { get; set; }
+        public string? SpecialRequests { get; set; }
+        public string? PromoCode { get; set; }
     }
 }

@@ -32,29 +32,20 @@ namespace HotelBooking.Application.Services
             if (dto.CheckOutDate.Date <= dto.CheckInDate.Date)
                 throw new ArgumentException("Check-out date must be after check-in date.");
 
-            var room = await _unitOfWork.Rooms.GetByIdAsync(dto.RoomId);
+            var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(dto.RoomTypeId);
+            if (roomType == null)
+                throw new KeyNotFoundException($"Room type with ID {dto.RoomTypeId} not found.");
+
+            var availableRooms = await _unitOfWork.Rooms.GetAvailableRoomsAsync(
+                roomType.HotelId, dto.CheckInDate, dto.CheckOutDate);
+
+            var room = availableRooms.FirstOrDefault(r => r.RoomTypeId == dto.RoomTypeId);
             if (room == null)
-                throw new KeyNotFoundException($"Room with ID {dto.RoomId} not found.");
-
-            if (room.Status == RoomStatus.UnderMaintenance)
-                throw new InvalidOperationException("Room is currently under maintenance.");
-
-            if (room.Status == RoomStatus.InActive)
-                throw new InvalidOperationException("Room is not available.");
-
-            var isAvailable = await _unitOfWork.Rooms.IsRoomAvailableAsync(
-                dto.RoomId, dto.CheckInDate, dto.CheckOutDate);
-
-            if (!isAvailable)
-                throw new InvalidOperationException("Room is not available for the selected dates.");
+                throw new InvalidOperationException("No rooms of the selected type are available for the selected dates.");
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null)
                 throw new KeyNotFoundException("User not found.");
-
-            var roomType = await _unitOfWork.RoomTypes.GetByIdAsync(room.RoomTypeId);
-            if (roomType == null)
-                throw new KeyNotFoundException("Room type not found.");
 
             var totalNights = (dto.CheckOutDate.Date - dto.CheckInDate.Date).Days;
             var totalPrice = totalNights * roomType.PricePerNight;
@@ -89,7 +80,7 @@ namespace HotelBooking.Application.Services
             var booking = new Booking
             {
                 UserId = userId,
-                RoomId = dto.RoomId,
+                RoomId = room.Id,
                 CheckInDate = dto.CheckInDate,
                 CheckOutDate = dto.CheckOutDate,
                 TotalNights = totalNights,
@@ -225,7 +216,7 @@ namespace HotelBooking.Application.Services
 
             var createDto = new CreateBookingDto
             {
-                RoomId = original.RoomId,
+                RoomTypeId = room.RoomTypeId, // Use the original room's RoomTypeId
                 CheckInDate = newCheckIn,
                 CheckOutDate = newCheckOut,
                 SpecialRequests = original.SpecialRequests

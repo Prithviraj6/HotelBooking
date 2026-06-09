@@ -23,7 +23,7 @@ namespace HotelBooking.API.Controllers
         public async Task<IActionResult> Search([FromQuery] HotelSearchDto searchDto)
         {
             var result = await _hotelService.SearchHotelsAsync(searchDto);
-            return Ok(result);
+            return Ok(ApiResponse<PagedResponse<HotelResponseDto>>.Ok(result));
         }
 
         [HttpGet("{id}")]

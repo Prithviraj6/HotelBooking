@@ -7,8 +7,8 @@ namespace HotelBooking.Application.Validators.Booking
     {
         public CreateBookingValidator()
         {
-            RuleFor(x => x.RoomId)
-                .GreaterThan(0).WithMessage("A valid Room ID is required.");
+            RuleFor(x => x.RoomTypeId)
+                .GreaterThan(0).WithMessage("A valid Room Type ID is required.");
 
             RuleFor(x => x.CheckInDate)
                 .NotEmpty().WithMessage("Check-in date is required.")

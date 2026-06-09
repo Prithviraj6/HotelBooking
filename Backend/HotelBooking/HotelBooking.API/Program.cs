@@ -13,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Query", LogEventLevel.Error)
+    .MinimumLevel.Override("LuckyPennySoftware.AutoMapper", LogEventLevel.Error)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
@@ -29,7 +31,11 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration));
 
 // ─── Services ────────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Database
@@ -59,14 +65,32 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// ─── Seed Data ───────────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        DataSeeder.SeedData(context);
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "An error occurred while seeding the database.");
+    }
+}
+
 // ─── Middleware Pipeline — ORDER MATTERS ─────────────────────────────────────
 app.UseMiddleware<ExceptionMiddleware>();        // 1. Catch all exceptions
-app.UseMiddleware<RequestLoggingMiddleware>();   // 2. Log requests + responses
+app.UseSerilogRequestLogging();                  // 2. Standard ASP.NET request logging
 
 app.UseStaticFiles(); // Serve images from wwwroot
 app.UseCors("AllowAll");
 app.UseSwaggerDocumentation();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

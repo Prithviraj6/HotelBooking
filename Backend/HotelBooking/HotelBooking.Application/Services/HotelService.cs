@@ -48,11 +48,10 @@ namespace HotelBooking.Application.Services
 
             return new PagedResponse<HotelResponseDto>
             {
-                Data = _mapper.Map<List<HotelResponseDto>>(hotels),
-                TotalRecords = totalCount,
-                PageNumber = searchDto.PageNumber,
-                PageSize = searchDto.PageSize,
-                Message = "Hotels retrieved successfully"
+                Items = _mapper.Map<List<HotelResponseDto>>(hotels),
+                TotalCount = totalCount,
+                Page = searchDto.PageNumber,
+                PageSize = searchDto.PageSize
             };
         }
 

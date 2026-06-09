@@ -1,7 +1,8 @@
-﻿using HotelBooking.Application.Interfaces;
+using HotelBooking.Application.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 
 namespace HotelBooking.Application.Services
@@ -9,33 +10,42 @@ namespace HotelBooking.Application.Services
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IConfiguration configuration)
+        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
         private async Task SendEmailAsync(string toEmail, string toName,
             string subject, string body)
         {
-            var email = new MimeMessage();
-            email.From.Add(new MailboxAddress(
-                _configuration["EmailSettings:SenderName"],
-                _configuration["EmailSettings:SenderEmail"]));
-            email.To.Add(new MailboxAddress(toName, toEmail));
-            email.Subject = subject;
-            email.Body = new TextPart("html") { Text = body };
+            try
+            {
+                var email = new MimeMessage();
+                email.From.Add(new MailboxAddress(
+                    _configuration["EmailSettings:SenderName"],
+                    _configuration["EmailSettings:SenderEmail"]));
+                email.To.Add(new MailboxAddress(toName, toEmail));
+                email.Subject = subject;
+                email.Body = new TextPart("html") { Text = body };
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(
-                _configuration["EmailSettings:SmtpHost"],
-                int.Parse(_configuration["EmailSettings:SmtpPort"]),
-                SecureSocketOptions.StartTls);
-            await smtp.AuthenticateAsync(
-                _configuration["EmailSettings:SenderEmail"],
-                _configuration["EmailSettings:Password"]);
-            await smtp.SendAsync(email);
-            await smtp.DisconnectAsync(true);
+                using var smtp = new SmtpClient();
+                await smtp.ConnectAsync(
+                    _configuration["EmailSettings:SmtpHost"],
+                    int.Parse(_configuration["EmailSettings:SmtpPort"]),
+                    SecureSocketOptions.StartTls);
+                await smtp.AuthenticateAsync(
+                    _configuration["EmailSettings:SenderEmail"],
+                    _configuration["EmailSettings:Password"]);
+                await smtp.SendAsync(email);
+                await smtp.DisconnectAsync(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email to {ToEmail}. Ensure valid SMTP App Passwords are configured.", toEmail);
+            }
         }
 
         public async Task SendRegistrationConfirmationAsync(

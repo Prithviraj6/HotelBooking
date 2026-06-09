@@ -83,5 +83,19 @@ namespace HotelBooking.API.Controllers
             await _adminService.RevokeHotelAdminAsync(id);
             return Ok(ApiResponse<object>.Ok(null, "Hotel Admin access successfully revoked"));
         }
+
+        [HttpGet("users")]
+        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var result = await _adminService.GetUsersAsync(page, pageSize);
+            return Ok(ApiResponse<PagedResponse<UserDto>>.Ok(result, "Users retrieved successfully"));
+        }
+
+        [HttpGet("bookings")]
+        public async Task<IActionResult> GetAllBookings([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var result = await _adminService.GetAllBookingsAsync(page, pageSize);
+            return Ok(ApiResponse<PagedResponse<HotelBooking.Application.DTOs.Booking.BookingResponseDto>>.Ok(result, "Bookings retrieved successfully"));
+        }
     }
 }

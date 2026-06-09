@@ -11,8 +11,8 @@ namespace HotelBooking.Domain.Entities
         public string State { get; set; }
         public string Country { get; set; }
         public int StarRating { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Email { get; set; }
+        public string PhoneNumber { get; set; } = "1234567890";
+        public string Email { get; set; } = "info@hotel.com";
         public string ImageUrl { get; set; }
         public bool IsActive { get; set; } = true;
 

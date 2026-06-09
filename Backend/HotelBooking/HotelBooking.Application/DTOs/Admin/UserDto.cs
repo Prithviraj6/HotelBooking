@@ -1,15 +1,15 @@
+using System;
 
-namespace HotelBooking.Application.DTOs.Auth
+namespace HotelBooking.Application.DTOs.Admin
 {
-    public class AuthResponseDto
+    public class UserDto
     {
         public int Id { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Email { get; set; }
         public string Role { get; set; }
-        public int? ManagedHotelId { get; set; }
-        public string Token { get; set; }
-        public DateTime TokenExpiry { get; set; }
+        public int? HotelId { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }
