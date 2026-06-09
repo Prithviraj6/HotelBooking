@@ -1,0 +1,15 @@
+.welcome-card {
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+}
+
+.quick-link-card {
+  transition: all 0.2s ease-in-out;
+  border: 1px solid transparent;
+  
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(13, 110, 253, 0.1);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+  }
+}
