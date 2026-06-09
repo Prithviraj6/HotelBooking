@@ -11,10 +11,10 @@ TestResults/
 .vs/
 .idea/
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+
+
+
+
 *.user
 *.rsuser
 *.suo
@@ -70,3 +70,54 @@ Desktop.ini
 *.bak
 *.swp
 *.swo
+
+# Angular Cache
+.angular/
+
+# Serilog logs
+Backend/HotelBooking/HotelBooking.API/logs/
+
+# Temporary files
+Backend/HotelBooking/HotelBooking.API/login.json
+
+# --- Frontend Angular Specific Ignores ---
+# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# Compiled output
+Frontend/dist
+Frontend/tmp
+Frontend/out-tsc
+Frontend/bazel-out
+
+# Node
+Frontend/node_modules
+npm-debug.log
+yarn-error.log
+
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Visual Studio Code
+.history/*
+
+# Miscellaneous
+Frontend/.angular/cache
+.sass-cache/
+Frontend/connect.lock
+Frontend/coverage
+Frontend/libpeerconnection.log
+testem.log
+Frontend/typings
+
+# System files
+.DS_Store
+Thumbs.db
+
+**/.vscode/
+.vscode/
