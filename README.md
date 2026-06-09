@@ -6,7 +6,7 @@
 ![Entity Framework Core](https://img.shields.io/badge/EF_Core-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap_5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
 
-A full-stack, multi-tenant Hotel Booking Management System designed with a focus on enterprise-level architecture, scalability, and security. Built using **ASP.NET Core 8 Web API** with a strictly enforced **Clean Architecture (Domain-Driven Design)** backend and a modern, highly responsive **Angular 17+** frontend.
+A full-stack, multi-tenant Hotel Booking Management System designed with a focus on enterprise-level architecture, scalability, and security. Built using **ASP.NET Core 10 Web API** with a strictly enforced **Clean Architecture (Domain-Driven Design)** backend and a modern, highly responsive **Angular 21** frontend.
 
 ## ✨ Key Features
 
