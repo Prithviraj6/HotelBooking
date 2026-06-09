@@ -1,7 +1,7 @@
 # 🏨 Hotel Booking Platform
 
-![.NET Core](https://img.shields.io/badge/.NET%208-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
-![Angular](https://img.shields.io/badge/Angular_17-%23DD0031.svg?style=for-the-badge&logo=angular&logoColor=white)
+![.NET Core](https://img.shields.io/badge/.NET%2010-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
+![Angular](https://img.shields.io/badge/Angular_21-%23DD0031.svg?style=for-the-badge&logo=angular&logoColor=white)
 ![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?style=for-the-badge&logo=microsoft-sql-server&logoColor=white)
 ![Entity Framework Core](https://img.shields.io/badge/EF_Core-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap_5-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
@@ -24,13 +24,13 @@ A full-stack, multi-tenant Hotel Booking Management System designed with a focus
 ## 🏗 Architecture & Design Patterns
 
 ### Backend (Clean Architecture / DDD)
-The `.NET 8` solution is heavily decoupled into 4 distinct layers:
+The `.NET 10` solution is heavily decoupled into 4 distinct layers:
 1. **Domain Layer:** Core business entities (`Hotel`, `Room`, `Booking`, `Payment`) and strictly defined Enums.
 2. **Application Layer:** DTOs, Validation, and strongly-typed Services enforcing business logic (e.g., preventing double-booking).
 3. **Infrastructure Layer:** Entity Framework Core `DbContext`, Data Seeding, and implementations of the **Repository** and **Unit of Work** design patterns for atomic SQL transactions.
 4. **API Layer:** Controllers, global exception handling middleware, and JWT configurations.
 
-### Frontend (Angular 17)
+### Frontend (Angular 21)
 - **Standalone Components:** Leverages the latest Angular paradigms without `NgModules`.
 - **Functional Interceptors & Guards:** Uses functional routing guards to protect dashboard routes and HTTP interceptors to automatically inject JWTs.
 - **Modular Design:** Features are split into lazy-loaded, domain-specific modules (`auth`, `public`, `customer`, `hotel-admin`, `super-admin`) to ensure minimal initial bundle sizes and fast First Contentful Paint (FCP).
@@ -40,7 +40,7 @@ The `.NET 8` solution is heavily decoupled into 4 distinct layers:
 ## 🚀 Getting Started
 
 ### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Node.js (v18+)](https://nodejs.org/)
 - SQL Server (LocalDB or Express)
 
